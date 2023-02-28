@@ -1,0 +1,161 @@
+version: "3.3"
+
+services:
+  traefik:
+    image: "traefik:v2.9"
+    container_name: "traefik"
+    ports:
+      - "80:80"     # HTTP
+      - "443:443"   # HTTPS
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
+    volumes:
+      # Static configuration file
+      - "./traefik.yml:/traefik.yml"
+      # Certificate storage location
+      - "./letsencrypt:/letsencrypt"
+      # So that Traefik can listen to the Docker events
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      # Expose our container
+      - "traefik.enable=true"
+      # Enable the dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      # DNS CHALLENGE
+      - "traefik.http.routers.traefik.tls.domains[0].main=*.${DOMAIN}"
+      - "traefik.http.routers.traefik.tls.domains[0].sans=${DOMAIN}"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+  jellyfin:
+    image: linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - "./config/jellyfin:/config"
+      - "./data/media:/data/media"
+    labels:
+      # Expose our service to traefik
+      - "traefik.enable=true"
+      # Setup our router
+      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      # The port our service can be found on
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+      # The network traefik should use to find our service
+      - "traefik.docker.network=mediaserver-nw"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - "./config/sonarr:/config"
+      - "./data:/data"
+    labels:
+      # Expose our service to traefik
+      - "traefik.enable=true"
+      # Setup our router
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      # The port our service can be found on
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      # The network traefik should use to find our service
+      - "traefik.docker.network=mediaserver-nw"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - "./config/radarr:/config"
+      - "./data:/data"
+    labels:
+      # Expose our service to traefik
+      - "traefik.enable=true"
+      # Setup our router
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      # The port our service can be found on
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+      # The network traefik should use to find our service
+      - "traefik.docker.network=mediaserver-nw"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - "./config/prowlarr:/config"
+    labels:
+      # Expose our service to traefik
+      - "traefik.enable=true"
+      # Setup our router
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      # The port our service can be found on
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+      # The network traefik should use to find our service
+      - "traefik.docker.network=mediaserver-nw"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - "./config/qbittorrent:/config"
+      - "./data/torrents:/data/torrents"
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+    labels:
+      # Expose our service to traefik
+      - "traefik.enable=true"
+      # Setup our router
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      # The port our service can be found on
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"
+      # The network traefik should use to find our service
+      - "traefik.docker.network=mediaserver-nw"
+    networks:
+      - mediaserver-nw
+    restart: unless-stopped
+
+networks:
+  mediaserver-nw:
+    external: true
+

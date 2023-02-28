@@ -1,0 +1,61 @@
+# Global configuration
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: true
+
+# EntryPoints configuration
+entryPoints:
+  # Hypertext Transfer Protocol (HTTP)
+  web:
+    address: :80
+    # Redirect all incoming HTTP requests to HTTPS
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+
+  # Hypertext Transfer Protocol Secure (HTTPS)
+  websecure:
+    address: :443
+    # Default TLS configuration applied to all routers 
+    http:
+      tls:
+        certResolver: lets-encrypt
+
+# API and dashboard configuration
+api:
+  # Enable the API in insecure mode
+  insecure: false
+
+  # Enabled Dashboard
+  dashboard: true
+
+# CertificatesResolvers configuration
+certificatesResolvers:
+  # Setup a lets-encrypt production environment.
+  lets-encrypt:
+    # Enable ACME (Let's Encrypt): automatic SSL.
+    acme:
+      # Email address used for registration.
+      email: "its.jassy@pm.me"
+      # File or key used for certificate storage.
+      storage: "/letsencrypt/acme.json"
+      # CA server to use.
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
+      # Use a DNS-01 ACME challenge.
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+
+# Docker configuration backend
+providers:
+  # Enable Docker configuration backend
+  docker:
+    # Docker server endpoint. Can be a tcp or a unix socket endpoint.
+    endpoint: "unix:///var/run/docker.sock"
+    # Expose containers by default in traefik
+    exposedByDefault: false
+
